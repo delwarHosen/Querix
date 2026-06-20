@@ -2,6 +2,8 @@
 import { type FC } from "react";
 import { Message } from "@/types/chat";
 import { useLang } from "@/lib/language";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
     message: Message;
@@ -41,7 +43,26 @@ const MessageBubble: FC<{ message: Message }> = (props) => {
                     : "bg-white text-slate-700 rounded-bl-none border border-slate-100"
                     }`}
             >
-                <p className="whitespace-pre-wrap break-words">{message.text}</p>
+                {isUser ? (
+                    <p className="whitespace-pre-wrap break-words">{message.text}</p>
+                ) : (
+                    <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            a: linkRenderer,
+                            p: paragraphRenderer,
+                            ul: unorderedListRenderer,
+                            ol: orderedListRenderer,
+                            li: listItemRenderer,
+                            strong: strongRenderer,
+                            h1: headingRenderer,
+                            h2: headingRenderer,
+                            h3: headingRenderer,
+                        }}
+                    >
+                        {message.text}
+                    </ReactMarkdown>
+                )}
             </div>
 
             {isUser && (
@@ -50,6 +71,64 @@ const MessageBubble: FC<{ message: Message }> = (props) => {
                 </div>
             )}
         </div>
+    );
+};
+
+function linkRenderer(props: { href?: string; children?: React.ReactNode }) {
+    return (
+        <a
+            href={props.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 hover:decoration-blue-500 break-all font-medium"
+        >
+            {props.children}
+        </a>
+    );
+}
+
+function paragraphRenderer(props: { children?: React.ReactNode }) {
+    return (
+        <p className="whitespace-pre-wrap break-words mb-3 last:mb-0">
+            {props.children}
+        </p>
+    );
+}
+
+function unorderedListRenderer(props: { children?: React.ReactNode }) {
+    return (
+        <ul className="mb-3 space-y-2 last:mb-0">{props.children}</ul>
+    );
+}
+
+function orderedListRenderer(props: { children?: React.ReactNode }) {
+    return (
+        <ol className="mb-3 space-y-2 last:mb-0 list-none counter-reset-item">
+            {props.children}
+        </ol>
+    );
+}
+
+function listItemRenderer(props: { children?: React.ReactNode }) {
+    return (
+        <li className="flex gap-2.5 items-start bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 overflow-hidden hover:bg-slate-100 transition-colors">
+            <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                •
+            </span>
+            <span className="flex-1 leading-relaxed min-w-0 break-words">{props.children}</span>
+        </li>
+    );
+}
+
+function strongRenderer(props: { children?: React.ReactNode }) {
+    return <strong className="font-semibold text-slate-900">{props.children}</strong>;
+}
+
+function headingRenderer(props: { children?: React.ReactNode }) {
+    return (
+        <h3 className="font-semibold text-slate-800 mb-2 mt-1 first:mt-0">
+            {props.children}
+        </h3>
     );
 }
 

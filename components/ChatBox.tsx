@@ -1,32 +1,47 @@
 "use client";
-import { useState, useRef, useEffect, JSX } from "react";
+import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
 import InputBar from "./InputBar";
 import { Message, ChatResponse } from "@/types/chat";
 import { useLang } from "@/lib/language";
 
-export default function ChatBox(): JSX.Element {
+export default function ChatBox() {
     const { lang, setLang, t } = useLang();
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    const suggestions = [t("suggestion1"), t("suggestion2"), t("suggestion3"),t("suggestion4"),t("suggestion5")];
+    const suggestions = [t("suggestion1"), t("suggestion2"), t("suggestion5"),t("suggestion3")];
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    useEffect(() => { }, [lang]);
+    // ✅ নতুন — Browser back/forward বাটন handle করুন
+    useEffect(() => {
+        const handlePopState = (event: PopStateEvent) => {
+            if (event.state?.hasChat) {
+                // কিছু করার দরকার নেই, chat state থেকেই যাবে
+            } else {
+                // Back করলে chat খালি করে দিন
+                setMessages([]);
+            }
+        };
+
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
 
     const handleSend = async (text: string): Promise<void> => {
+        // ✅ প্রথম message পাঠানোর সময় history তে একটা entry push করুন
+        if (messages.length === 0) {
+            window.history.pushState({ hasChat: true }, "", window.location.href);
+        }
+
         const userMsg: Message = { role: "user", text };
         setMessages((prev) => [...prev, userMsg]);
         setLoading(true);
-        setMessages((prev) => [
-            ...prev,
-            { role: "bot", text: "", isSearching: true },
-        ]);
+        setMessages((prev) => [...prev, { role: "bot", text: "", isSearching: true }]);
 
         try {
             const res = await fetch("/api/chat", {
@@ -52,6 +67,8 @@ export default function ChatBox(): JSX.Element {
             setLoading(false);
         }
     };
+
+  
 
     return (
         <div className="flex flex-col h-dvh bg-slate-50">
@@ -79,33 +96,33 @@ export default function ChatBox(): JSX.Element {
                         <button
                             onClick={() => setLang("bn")}
                             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${lang === "bn"
-                                    ? "bg-white text-violet-600 shadow-sm"
-                                    : "text-slate-400 hover:text-slate-600"
+                                ? "bg-white text-violet-600 shadow-sm"
+                                : "text-slate-400 hover:text-slate-600"
                                 }`}
                         >
                             <svg className="w-4 h-3.5 rounded-sm" viewBox="0 0 20 12">
                                 <rect width="20" height="12" fill="#006a4e" />
                                 <circle cx="9" cy="6" r="4" fill="#f42a41" />
                             </svg>
-                           
+
                         </button>
                         <button
                             onClick={() => setLang("en")}
                             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${lang === "en"
-                                    ? "bg-white text-violet-600 shadow-sm"
-                                    : "text-slate-400 hover:text-slate-600"
+                                ? "bg-white text-violet-600 shadow-sm"
+                                : "text-slate-400 hover:text-slate-600"
                                 }`}
                         >
                             <svg className="w-4 h-3.5 rounded-sm" viewBox="0 0 50 30">
                                 <clipPath id="s">
-                                    <path d="M0,0 v30 h50 v-30 z"/>
+                                    <path d="M0,0 v30 h50 v-30 z" />
                                 </clipPath>
-                                <path d="M0,0 L50,30 M50,0 L0,30" stroke="#fff" strokeWidth="6" clipPath="url(#s)"/>
-                                <path d="M0,0 L50,30 M50,0 L0,30" stroke="#012169" strokeWidth="4" clipPath="url(#s)"/>
-                                <path d="M25,0 v30 M0,15 h50" stroke="#fff" strokeWidth="10"/>
-                                <path d="M25,0 v30 M0,15 h50" stroke="#C8102E" strokeWidth="6"/>
+                                <path d="M0,0 L50,30 M50,0 L0,30" stroke="#fff" strokeWidth="6" clipPath="url(#s)" />
+                                <path d="M0,0 L50,30 M50,0 L0,30" stroke="#012169" strokeWidth="4" clipPath="url(#s)" />
+                                <path d="M25,0 v30 M0,15 h50" stroke="#fff" strokeWidth="10" />
+                                <path d="M25,0 v30 M0,15 h50" stroke="#C8102E" strokeWidth="6" />
                             </svg>
-                           
+
                         </button>
                     </div>
                 </div>

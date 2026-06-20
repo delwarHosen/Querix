@@ -36,38 +36,6 @@ async function searchSports(isEnglish: boolean): Promise<string> {
     }
 }
 
-// ESPN থেকে top scorers data
-async function getTopScorers(isEnglish: boolean): Promise<string> {
-    try {
-        const res = await fetch(
-            "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/leaders",
-            { next: { revalidate: 300 } }
-        );
-        const data = await res.json();
-
-        const scorers = data.categories?.find(
-            (c: any) =>
-                c.name === "goals" || c.displayName?.toLowerCase().includes("goal")
-        );
-
-        if (!scorers || !scorers.leaders) {
-            return isEnglish ? "Top scorers data not found." : "গোলদাতার তথ্য পাওয়া যায়নি।";
-        }
-
-        return scorers.leaders
-            .slice(0, 10)
-            .map((l: any, i: number) => {
-                const athlete = l.athlete;
-                const team = l.team?.displayName ?? "";
-                const goals = l.value ?? 0;
-                return `${i + 1}. ${athlete?.displayName} (${team}) — ${goals} ${isEnglish ? "goals" : "গোল"}`;
-            })
-            .join("\n");
-    } catch {
-        return isEnglish ? "Failed to fetch top scorers data." : "গোলদাতার তথ্য আনতে সমস্যা হয়েছে।";
-    }
-}
-
 // Tavily web search
 async function searchWeb(query: string, isEnglish: boolean): Promise<string> {
     try {
@@ -78,7 +46,7 @@ async function searchWeb(query: string, isEnglish: boolean): Promise<string> {
                 api_key: process.env.TAVILY_API_KEY,
                 query,
                 search_depth: "basic",
-                max_results: 4,
+                max_results: 5,
             }),
         });
 
@@ -109,7 +77,7 @@ function isSportsQuery(message: string): boolean {
     return keywords.some((k) => message.toLowerCase().includes(k));
 }
 
-// Scorer সম্পর্কিত কিনা চেক করুন
+// Scorer সম্পর্কিত কিনা চেক করুন (ESPN অনির্ভরযোগ্য, তাই Tavily route)
 function isScorerQuery(message: string): boolean {
     const keywords = [
         "গোলদাতা", "সর্বোচ্চ গোল", "কে বেশি গোল", "গোল করেছে কে",
@@ -159,15 +127,23 @@ export async function POST(
         const isEnglish = checkIsEnglish(message);
 
         let systemPrompt = isEnglish
-            ? "You are a helpful AI assistant. Answer in English. Be concise and friendly. If data or response is unavailable, state it in English."
-            : "You are a helpful AI assistant. Answer in the same language the user uses (preferably Bengali). Be concise and friendly. If data or response is unavailable, state it in Bengali.";
+            ? "You are a helpful AI assistant with access to real-time web search results. Use the search results below to answer the user's question accurately in English. Only cite URLs that are EXACTLY as given in the search results below — never modify, shorten, or guess a URL. Use markdown link format [Source Name](exact URL from results). If unsure of a URL, don't include it. If no data is found, politely reply in English."
+            : "You are a helpful AI assistant with access to real-time web search results. Use the search results below to answer the user's question accurately. Answer in the same language the user uses. Only cite URLs that are EXACTLY as given in the search results below — never modify, shorten, or guess a URL. Use markdown link format [উৎসের নাম](exact URL from results). If unsure of a URL, don't include it. If no data is found, politely reply in Bengali.";
 
         let userContent = message;
 
         if (isSportsQuery(message)) {
-            const sportsData = isScorerQuery(message)
-                ? await getTopScorers(isEnglish)
-                : await searchSports(isEnglish);
+            let sportsData: string;
+
+            if (isScorerQuery(message)) {
+                // ESPN leaders endpoint অনির্ভরযোগ্য, তাই Tavily দিয়ে search
+                sportsData = await searchWeb(
+                    `${message} FIFA World Cup 2026 latest golden boot standings`,
+                    isEnglish
+                );
+            } else {
+                sportsData = await searchSports(isEnglish);
+            }
 
             systemPrompt = isEnglish
                 ? "You are a helpful AI assistant with access to live sports data. Use the data below to answer accurately in English. If data contains errors or states unavailability, explain it in English."
